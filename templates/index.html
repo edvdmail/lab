@@ -1,0 +1,1363 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LabAnalyzer v3.0 — Teker Salud</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=Lato:wght@300;400;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Variables ── */
+    :root {
+      --bg:        #0b0f1a;
+      --surface:   #111827;
+      --surface2:  #1a2236;
+      --border:    #1e2d45;
+      --accent:    #00d4aa;
+      --accent2:   #3b82f6;
+      --danger:    #ef4444;
+      --warn:      #f59e0b;
+      --ok:        #22c55e;
+      --text:      #e2e8f0;
+      --muted:     #64748b;
+      --mono:      'DM Mono', monospace;
+      --sans:      'Syne', sans-serif;
+      --body:      'Lato', sans-serif;
+      --radius:    8px;
+      --shadow:    0 4px 24px rgba(0,0,0,.45);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--body);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      height: 60px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      gap: 1rem;
+    }
+    .logo {
+      font-family: var(--sans);
+      font-weight: 800;
+      font-size: 1.15rem;
+      letter-spacing: -.02em;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      white-space: nowrap;
+    }
+    .logo span { color: var(--accent); }
+    .logo sub { font-size: .65rem; color: var(--muted); font-weight: 400; letter-spacing: .05em; }
+
+    .health-badge {
+      display: flex; align-items: center; gap: .4rem;
+      font-family: var(--mono);
+      font-size: .7rem;
+      color: var(--muted);
+      cursor: pointer;
+      padding: .3rem .7rem;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      transition: border-color .2s, color .2s;
+    }
+    .health-badge:hover { border-color: var(--accent); color: var(--accent); }
+    .health-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); transition: background .3s; }
+    .health-dot.ok  { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+    .health-dot.err { background: var(--danger); }
+
+    /* ── Layout ── */
+    .layout {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ── */
+    nav.sidebar {
+      width: 210px;
+      min-width: 210px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 1.5rem 0;
+      display: flex;
+      flex-direction: column;
+      gap: .25rem;
+    }
+    .nav-label {
+      font-family: var(--mono);
+      font-size: .62rem;
+      color: var(--muted);
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      padding: .5rem 1.2rem 0;
+      margin-top: .5rem;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: .7rem;
+      padding: .55rem 1.2rem;
+      font-size: .85rem;
+      color: var(--muted);
+      cursor: pointer;
+      border-left: 3px solid transparent;
+      transition: color .15s, background .15s, border-color .15s;
+      user-select: none;
+    }
+    .nav-item:hover { color: var(--text); background: var(--surface2); }
+    .nav-item.active { color: var(--accent); border-left-color: var(--accent); background: rgba(0,212,170,.06); }
+    .nav-item .icon { font-size: 1rem; }
+
+    /* ── Main content ── */
+    main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    /* ── Page title ── */
+    .page-title {
+      font-family: var(--sans);
+      font-size: 1.4rem;
+      font-weight: 700;
+      display: flex;
+      align-items: baseline;
+      gap: .6rem;
+    }
+    .page-title .tag {
+      font-family: var(--mono);
+      font-size: .65rem;
+      color: var(--muted);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      padding: .15rem .5rem;
+      border-radius: 4px;
+      letter-spacing: .06em;
+    }
+
+    /* ── Sections (tabs) ── */
+    .section { display: none; flex-direction: column; gap: 1.5rem; }
+    .section.active { display: flex; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.4rem 1.5rem;
+    }
+    .card-title {
+      font-family: var(--sans);
+      font-size: .9rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+    }
+    .card-title .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--accent);
+    }
+
+    /* ── Form controls ── */
+    .form-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: flex-end;
+    }
+    .field { display: flex; flex-direction: column; gap: .35rem; flex: 1; min-width: 160px; }
+    label {
+      font-family: var(--mono);
+      font-size: .68rem;
+      color: var(--muted);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    input[type="text"], input[type="number"], input[type="date"], select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: .82rem;
+      padding: .55rem .8rem;
+      outline: none;
+      transition: border-color .15s, box-shadow .15s;
+      width: 100%;
+    }
+    input:focus, select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0,212,170,.12);
+    }
+    input[type="checkbox"] { accent-color: var(--accent); width: 15px; height: 15px; cursor: pointer; }
+    .check-row { display: flex; align-items: center; gap: .5rem; font-size: .82rem; color: var(--muted); }
+
+    /* ── Buttons ── */
+    .btn {
+      font-family: var(--sans);
+      font-weight: 600;
+      font-size: .82rem;
+      padding: .58rem 1.2rem;
+      border-radius: var(--radius);
+      border: none;
+      cursor: pointer;
+      transition: opacity .15s, transform .1s, box-shadow .15s;
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      white-space: nowrap;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn-primary { background: var(--accent); color: #0b0f1a; }
+    .btn-primary:hover { opacity: .9; box-shadow: 0 0 14px rgba(0,212,170,.35); }
+    .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover { border-color: var(--accent2); color: var(--accent2); }
+    .btn-danger { background: rgba(239,68,68,.12); color: var(--danger); border: 1px solid rgba(239,68,68,.3); }
+    .btn-danger:hover { background: rgba(239,68,68,.2); }
+    .btn:disabled { opacity: .4; cursor: not-allowed; pointer-events: none; }
+
+    /* ── Spinner ── */
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,.15);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Progress bar ── */
+    .progress-wrap { background: var(--surface2); border-radius: 4px; height: 6px; overflow: hidden; }
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 4px;
+      transition: width .3s ease;
+      width: 0%;
+    }
+
+    /* ── Stats row ── */
+    .stats-row { display: flex; gap: 1rem; flex-wrap: wrap; }
+    .stat-box {
+      flex: 1; min-width: 120px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: .9rem 1rem;
+      text-align: center;
+    }
+    .stat-num {
+      font-family: var(--mono);
+      font-size: 1.6rem;
+      font-weight: 500;
+      color: var(--accent);
+    }
+    .stat-num.warn { color: var(--warn); }
+    .stat-num.danger { color: var(--danger); }
+    .stat-lbl { font-size: .7rem; color: var(--muted); margin-top: .2rem; }
+
+    /* ── Results table ── */
+    .results-scroll { overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .78rem;
+      font-family: var(--body);
+    }
+    th {
+      background: var(--surface2);
+      padding: .55rem .9rem;
+      text-align: left;
+      font-family: var(--mono);
+      font-size: .65rem;
+      color: var(--muted);
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    td {
+      padding: .55rem .9rem;
+      border-bottom: 1px solid rgba(30,45,69,.6);
+      vertical-align: middle;
+    }
+    tr:hover td { background: rgba(255,255,255,.02); }
+
+    /* ── Status badges ── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: .3rem;
+      padding: .2rem .55rem;
+      border-radius: 20px;
+      font-family: var(--mono);
+      font-size: .65rem;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .badge-ok      { background: rgba(34,197,94,.12);  color: var(--ok);    border: 1px solid rgba(34,197,94,.3); }
+    .badge-alto    { background: rgba(239,68,68,.12);  color: var(--danger); border: 1px solid rgba(239,68,68,.3); }
+    .badge-bajo    { background: rgba(59,130,246,.12); color: var(--accent2); border: 1px solid rgba(59,130,246,.3); }
+    .badge-sin     { background: rgba(100,116,139,.1); color: var(--muted);  border: 1px solid var(--border); }
+    .badge-cached  { background: rgba(245,158,11,.12); color: var(--warn);  border: 1px solid rgba(245,158,11,.3); }
+    .badge-error   { background: rgba(239,68,68,.1);   color: var(--danger); border: 1px solid rgba(239,68,68,.2); }
+    .badge-fhir    { background: rgba(0,212,170,.08);  color: var(--accent); border: 1px solid rgba(0,212,170,.25); }
+
+    /* ── Exam detail accordion ── */
+    .exam-accordion { display: flex; flex-direction: column; gap: .5rem; }
+    .exam-block {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .exam-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: .75rem 1rem;
+      background: var(--surface2);
+      cursor: pointer;
+      user-select: none;
+      transition: background .15s;
+      gap: .5rem;
+    }
+    .exam-header:hover { background: rgba(0,212,170,.06); }
+    .exam-header-left {
+      display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+    }
+    .exam-name { font-family: var(--sans); font-size: .87rem; font-weight: 600; }
+    .exam-body { display: none; padding: 1rem; }
+    .exam-body.open { display: block; }
+    .chevron { transition: transform .2s; font-size: .7rem; color: var(--muted); }
+    .chevron.open { transform: rotate(180deg); }
+
+    /* ── Param table inside exam ── */
+    .param-table { width: 100%; border-collapse: collapse; font-size: .77rem; }
+    .param-table th {
+      font-size: .6rem;
+      padding: .4rem .7rem;
+    }
+    .param-table td { padding: .45rem .7rem; }
+
+    /* ── Narrativa ── */
+    .narrativa-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 1rem 1.2rem;
+      font-size: .82rem;
+      line-height: 1.7;
+      color: var(--text);
+      white-space: pre-wrap;
+      font-family: var(--body);
+    }
+
+    /* ── Evolution charts placeholder ── */
+    .chart-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; }
+    .chart-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+    }
+    .chart-card-title {
+      font-family: var(--sans);
+      font-size: .8rem;
+      font-weight: 600;
+      margin-bottom: .6rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: .5rem;
+    }
+    .trend-badge {
+      font-family: var(--mono);
+      font-size: .6rem;
+      padding: .15rem .4rem;
+      border-radius: 4px;
+    }
+    .trend-up    { background: rgba(239,68,68,.15);  color: var(--danger); }
+    .trend-down  { background: rgba(59,130,246,.15); color: var(--accent2); }
+    .trend-stable { background: rgba(34,197,94,.12); color: var(--ok); }
+    .mini-chart  { height: 70px; position: relative; overflow: hidden; }
+    .mini-points {
+      display: flex; align-items: flex-end; gap: 6px; height: 100%;
+      padding-bottom: 4px;
+    }
+    .mini-bar {
+      flex: 1;
+      border-radius: 3px 3px 0 0;
+      min-height: 4px;
+      transition: opacity .2s;
+      cursor: default;
+    }
+    .mini-bar:hover { opacity: .8; }
+    .point-date { font-size: .6rem; color: var(--muted); margin-top: .3rem; text-align: center; }
+
+    /* ── Toast ── */
+    #toast-container {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: .5rem;
+      z-index: 9999;
+    }
+    .toast {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: .7rem 1.1rem;
+      font-size: .8rem;
+      box-shadow: var(--shadow);
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      animation: slideIn .25s ease;
+      max-width: 340px;
+    }
+    .toast.success { border-left: 3px solid var(--ok); }
+    .toast.error   { border-left: 3px solid var(--danger); }
+    .toast.info    { border-left: 3px solid var(--accent2); }
+    @keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+    /* ── Empty state ── */
+    .empty {
+      text-align: center;
+      padding: 3rem;
+      color: var(--muted);
+      font-size: .85rem;
+    }
+    .empty .icon { font-size: 2.5rem; margin-bottom: .8rem; }
+
+    /* ── Mono text ── */
+    .mono { font-family: var(--mono); }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+  </style>
+</head>
+<body>
+
+<!-- ══ HEADER ══ -->
+<header>
+  <div class="logo">
+    🔬 <span>Lab</span>Analyzer <sub>v3.0</sub>
+  </div>
+  <div style="display:flex; align-items:center; gap:.8rem; flex-wrap:wrap;">
+    <span style="font-family:var(--mono);font-size:.7rem;color:var(--muted);">Ollama:</span>
+    <div class="health-badge" onclick="checkHealth()">
+      <div class="health-dot" id="health-dot"></div>
+      <span id="health-model">comprobando…</span>
+    </div>
+    <span style="font-size:.7rem;color:var(--muted);font-family:var(--mono);" id="ollama-url-lbl"></span>
+  </div>
+</header>
+
+<!-- ══ LAYOUT ══ -->
+<div class="layout">
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="nav-label">Procesamiento</div>
+    <div class="nav-item active" data-section="batch" onclick="goTo('batch', this)">
+      <span class="icon">📦</span> Proceso Batch
+    </div>
+    <div class="nav-item" data-section="single" onclick="goTo('single', this)">
+      <span class="icon">📄</span> Archivo Único
+    </div>
+
+    <div class="nav-label">Paciente</div>
+    <div class="nav-item" data-section="evolucion" onclick="goTo('evolucion', this)">
+      <span class="icon">📈</span> Evolución Clínica
+    </div>
+
+    <div class="nav-label">Sistema</div>
+    <div class="nav-item" data-section="config" onclick="goTo('config', this)">
+      <span class="icon">⚙️</span> Configuración
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main id="main-content">
+
+    <!-- ══════════ BATCH ══════════ -->
+    <section id="section-batch" class="section active">
+      <div class="page-title">Proceso Batch <span class="tag">POST /batch</span></div>
+
+      <div class="card">
+        <div class="card-title"><div class="dot"></div> Parámetros de consulta</div>
+        <div class="form-row">
+          <div class="field">
+            <label>Fecha inicio</label>
+            <input type="date" id="batch-fecha-ini" />
+          </div>
+          <div class="field">
+            <label>Fecha fin</label>
+            <input type="date" id="batch-fecha-fin" />
+          </div>
+          <div class="field" style="max-width:140px;">
+            <label>Idioma salida</label>
+            <select id="batch-lang">
+              <option value="es">Español</option>
+              <option value="en">English</option>
+            </select>
+          </div>
+          <div class="field" style="justify-content:flex-end; min-width:auto;">
+            <label>&nbsp;</label>
+            <div class="check-row">
+              <input type="checkbox" id="batch-force" />
+              <span>Forzar reproceso</span>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:1.1rem; display:flex; gap:.7rem; align-items:center; flex-wrap:wrap;">
+          <button class="btn btn-secondary" onclick="previewBatch()">🔍 Ver cuántos</button>
+          <button class="btn btn-primary" onclick="runBatch()">
+            <div class="spinner" id="batch-spin"></div>
+            ▶ Iniciar Batch
+          </button>
+          <button class="btn btn-danger" onclick="cancelBatch()" style="display:none;">⏹ Cancelar</button>
+          <button class="btn btn-secondary" onclick="clearBatchResults()">✕ Limpiar</button>
+        </div>
+      </div>
+
+      <!-- Progress -->
+      <div class="card" id="batch-progress-card" style="display:none;">
+        <div class="card-title"><div class="dot"></div> Progreso</div>
+        <div class="progress-wrap"><div class="progress-bar" id="batch-progress-bar"></div></div>
+        <div style="margin-top:.5rem; font-family:var(--mono); font-size:.72rem; color:var(--muted);" id="batch-progress-txt">Procesando…</div>
+      </div>
+
+      <!-- Log en vivo -->
+      <div class="card" id="batch-log-card" style="display:none; margin-bottom:.8rem;">
+        <div class="card-title"><div class="dot"></div> Log en tiempo real</div>
+        <div id="batch-log-body" style="
+          background:#060c18;
+          border-radius:6px;
+          padding:.8rem 1rem;
+          max-height:200px;
+          overflow-y:auto;
+          font-family:var(--mono);
+          font-size:.72rem;
+          line-height:1.6;
+          color:var(--muted);
+        "></div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-row" id="batch-stats" style="display:none;">
+        <div class="stat-box">
+          <div class="stat-num" id="stat-total">0</div>
+          <div class="stat-lbl">Total archivos</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num" id="stat-ok">0</div>
+          <div class="stat-lbl">Procesados</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num warn" id="stat-cached">0</div>
+          <div class="stat-lbl">Desde caché</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num danger" id="stat-err">0</div>
+          <div class="stat-lbl">Errores</div>
+        </div>
+      </div>
+
+      <!-- Results -->
+      <div class="card" id="batch-results-card" style="display:none;">
+        <div class="card-title"><div class="dot"></div> Resultados</div>
+        <div class="results-scroll">
+          <table id="batch-table">
+            <thead>
+              <tr>
+                <th>ID Archivo</th>
+                <th>Status</th>
+                <th>Tipo examen</th>
+                <th>Fecha</th>
+                <th>FHIR</th>
+                <th>CUPS</th>
+                <th>Parámetros</th>
+                <th>Caché</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="batch-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════ SINGLE ══════════ -->
+    <section id="section-single" class="section">
+      <div class="page-title">Análisis de Archivo Único <span class="tag">POST /analyze</span></div>
+
+      <div class="card">
+        <div class="card-title"><div class="dot"></div> Datos del archivo</div>
+        <div class="form-row">
+          <div class="field" style="flex:2;">
+            <label>URL del archivo</label>
+            <input type="text" id="single-url" placeholder="http://tekerapp.maxapex.net/FILES_PROD_TEKER_NEW/…" />
+          </div>
+          <div class="field">
+            <label>ID Usuario</label>
+            <input type="number" id="single-iduser" placeholder="12345" />
+          </div>
+          <div class="field">
+            <label>Identificación (contraseña PDF)</label>
+            <input type="text" id="single-ident" placeholder="CC / TI del paciente" />
+          </div>
+        </div>
+        <div class="form-row" style="margin-top:.8rem;">
+          <div class="field" style="max-width:130px;">
+            <label>ID Archivo</label>
+            <input type="number" id="single-idarchivo" placeholder="opcional" />
+          </div>
+          <div class="field" style="max-width:130px;">
+            <label>Idioma</label>
+            <select id="single-lang">
+              <option value="es">Español</option>
+              <option value="en">English</option>
+            </select>
+          </div>
+          <div class="field" style="justify-content:flex-end; min-width:auto;">
+            <label>&nbsp;</label>
+            <div class="check-row">
+              <input type="checkbox" id="single-force" />
+              <span>Forzar reproceso</span>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:1.1rem; display:flex; gap:.7rem; align-items:center;">
+          <button class="btn btn-primary" onclick="runSingle()">
+            <div class="spinner" id="single-spin"></div>
+            🔍 Analizar
+          </button>
+          <button class="btn btn-secondary" onclick="clearSingle()">✕ Limpiar</button>
+        </div>
+      </div>
+
+      <!-- Single results -->
+      <div id="single-result-area"></div>
+    </section>
+
+    <!-- ══════════ EVOLUCIÓN ══════════ -->
+    <section id="section-evolucion" class="section">
+      <div class="page-title">Evolución Clínica Longitudinal <span class="tag">POST /evolucion</span></div>
+
+      <div class="card">
+        <div class="card-title"><div class="dot"></div> Buscar paciente</div>
+        <div class="form-row">
+          <div class="field" style="max-width:200px;">
+            <label>ID Usuario</label>
+            <input type="number" id="evol-iduser" placeholder="ID interno del paciente" />
+          </div>
+          <div class="field" style="max-width:130px;">
+            <label>Idioma</label>
+            <select id="evol-lang">
+              <option value="es">Español</option>
+              <option value="en">English</option>
+            </select>
+          </div>
+          <div class="field" style="justify-content:flex-end; min-width:auto;">
+            <label>&nbsp;</label>
+            <button class="btn btn-primary" onclick="runEvolucion()">
+              <div class="spinner" id="evol-spin"></div>
+              📊 Cargar Evolución
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="evol-result-area">
+        <div class="empty"><div class="icon">📋</div>Ingresa un ID de usuario para ver su evolución clínica</div>
+      </div>
+    </section>
+
+    <!-- ══════════ CONFIG ══════════ -->
+    <section id="section-config" class="section">
+      <div class="page-title">Configuración <span class="tag">client-side</span></div>
+
+      <div class="card">
+        <div class="card-title"><div class="dot"></div> Endpoint del servidor</div>
+        <div class="form-row">
+          <div class="field">
+            <label>Base URL de la API</label>
+            <input type="text" id="cfg-base-url" value="http://localhost:8000" />
+          </div>
+          <div class="field" style="justify-content:flex-end; min-width:auto;">
+            <label>&nbsp;</label>
+            <button class="btn btn-primary" onclick="saveConfig()">💾 Guardar</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><div class="dot"></div> Estado Ollama</div>
+        <div id="health-detail" style="font-family:var(--mono);font-size:.77rem;color:var(--muted);line-height:1.8;">
+          Presiona "Comprobar" para verificar la conexión.
+        </div>
+        <div style="margin-top:1rem;">
+          <button class="btn btn-secondary" onclick="checkHealth()">🔄 Comprobar estado</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<!-- ══ DETAIL MODAL (for batch row expand) ══ -->
+<div id="detail-modal" style="
+  display:none; position:fixed; inset:0; z-index:200;
+  background:rgba(0,0,0,.7); backdrop-filter:blur(4px);
+  align-items:center; justify-content:center;
+" onclick="closeModal(event)">
+  <div style="
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:1.5rem;
+    max-width:750px;
+    width:95%;
+    max-height:85vh;
+    overflow-y:auto;
+    position:relative;
+  " id="modal-inner" onclick="event.stopPropagation()">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+      <div class="card-title" style="margin:0;"><div class="dot"></div><span id="modal-title">Detalle</span></div>
+      <button class="btn btn-secondary" style="padding:.3rem .7rem;" onclick="document.getElementById('detail-modal').style.display='none'">✕</button>
+    </div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let API_BASE = localStorage.getItem('lab_api_base') || 'http://localhost:8000';
+let batchResults = [];
+
+// ── Init ───────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('cfg-base-url').value = API_BASE;
+  document.getElementById('ollama-url-lbl').textContent = API_BASE;
+
+  // Default date range: last 7 days
+  const today = new Date();
+  const week  = new Date(today); week.setDate(week.getDate() - 7);
+  document.getElementById('batch-fecha-ini').value = week.toISOString().split('T')[0];
+  document.getElementById('batch-fecha-fin').value = today.toISOString().split('T')[0];
+
+  checkHealth();
+});
+
+// ── Navigation ─────────────────────────────────────────────────────────────
+function goTo(id, el) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('section-' + id).classList.add('active');
+  el.classList.add('active');
+}
+
+// ── Config ─────────────────────────────────────────────────────────────────
+function saveConfig() {
+  API_BASE = document.getElementById('cfg-base-url').value.replace(/\/$/, '');
+  localStorage.setItem('lab_api_base', API_BASE);
+  document.getElementById('ollama-url-lbl').textContent = API_BASE;
+  toast('Configuración guardada', 'success');
+  checkHealth();
+}
+
+// ── Health check ───────────────────────────────────────────────────────────
+async function checkHealth() {
+  const dot = document.getElementById('health-dot');
+  const lbl = document.getElementById('health-model');
+  dot.className = 'health-dot';
+  lbl.textContent = 'comprobando…';
+  try {
+    const r = await fetch(API_BASE + '/health', { signal: AbortSignal.timeout(6000) });
+    const d = await r.json();
+    if (d.status === 'ok') {
+      dot.className = 'health-dot ok';
+      lbl.textContent = d.model_activo || 'ok';
+      const models = (d.ollama_models || []).join(', ') || '—';
+      document.getElementById('health-detail').innerHTML =
+        `<b style="color:var(--ok)">✓ Conectado</b><br>
+         Modelo activo: <span style="color:var(--accent)">${d.model_activo}</span><br>
+         Modelos disponibles: ${models}`;
+    } else {
+      throw new Error(d.detail || 'error');
+    }
+  } catch(e) {
+    dot.className = 'health-dot err';
+    lbl.textContent = 'sin conexión';
+    document.getElementById('health-detail').innerHTML =
+      `<b style="color:var(--danger)">✗ No disponible</b><br>${e.message}`;
+  }
+}
+
+// ── Utilities ──────────────────────────────────────────────────────────────
+function dateToYMD(d) {
+  return d.replace(/-/g, '');
+}
+
+function stateBadge(estado) {
+  const m = {
+    'normal': '<span class="badge badge-ok">✓ normal</span>',
+    'alto':   '<span class="badge badge-alto">↑ alto</span>',
+    'bajo':   '<span class="badge badge-bajo">↓ bajo</span>',
+  };
+  return m[estado] || '<span class="badge badge-sin">— sin dato</span>';
+}
+
+function fhirBadge(cat) {
+  return `<span class="badge badge-fhir">${cat || '?'}</span>`;
+}
+
+function toast(msg, type = 'info') {
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  const icons = { success: '✓', error: '✗', info: 'ℹ' };
+  t.innerHTML = `<span>${icons[type] || ''}</span> ${msg}`;
+  document.getElementById('toast-container').appendChild(t);
+  setTimeout(() => t.remove(), 3800);
+}
+
+function spin(id, on) {
+  document.getElementById(id).style.display = on ? 'inline-block' : 'none';
+}
+
+// ── BATCH ──────────────────────────────────────────────────────────────────
+let _batchPollTimer = null;
+let _batchLogShown  = 0;
+
+async function previewBatch() {
+  const fi = document.getElementById('batch-fecha-ini').value;
+  const ff = document.getElementById('batch-fecha-fin').value;
+  if (!fi || !ff) { toast('Selecciona rango de fechas', 'error'); return; }
+  try {
+    const r = await fetch(`${API_BASE}/batch/preview?fecha_ini=${dateToYMD(fi)}&fecha_fin=${dateToYMD(ff)}`);
+    const d = await r.json();
+    if (d.error) { toast(d.error, 'error'); return; }
+    toast(`📋 ${d.total} archivos en el rango · ${d.ya_analizados} ya analizados · ${d.pendientes} pendientes`, 'info');
+  } catch(e) { toast('Error al consultar: ' + e.message, 'error'); }
+}
+
+async function cancelBatch() {
+  clearInterval(_batchPollTimer);
+  await fetch(API_BASE + '/batch/cancel', { method: 'POST' });
+  spin('batch-spin', false);
+  document.querySelector('[onclick="cancelBatch()"]').style.display = 'none';
+  document.querySelector('[onclick="runBatch()"]').disabled = false;
+  toast('Batch cancelado', 'info');
+}
+
+async function runBatch() {
+  const fi = document.getElementById('batch-fecha-ini').value;
+  const ff = document.getElementById('batch-fecha-fin').value;
+  if (!fi || !ff) { toast('Selecciona rango de fechas', 'error'); return; }
+
+  // Reset UI
+  spin('batch-spin', true);
+  document.getElementById('batch-stats').style.display = 'none';
+  document.getElementById('batch-results-card').style.display = 'none';
+  document.getElementById('batch-progress-card').style.display = 'block';
+  document.getElementById('batch-log-card').style.display = 'block';
+  document.getElementById('batch-log-body').innerHTML = '';
+  _batchLogShown = 0;
+  setProgress(0, 'Iniciando batch…');
+  document.querySelector('[onclick="runBatch()"]').disabled = true;
+  document.querySelector('[onclick="cancelBatch()"]').style.display = 'inline-flex';
+
+  const body = {
+    fecha_ini:       dateToYMD(fi),
+    fecha_fin:       dateToYMD(ff),
+    output_lang:     document.getElementById('batch-lang').value,
+    force_reprocess: document.getElementById('batch-force').checked,
+  };
+
+  try {
+    const r = await fetch(API_BASE + '/batch', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(body),
+    });
+    const d = await r.json();
+    if (!r.ok) {
+      toast(d.error || d.detail || 'Error iniciando batch', 'error');
+      spin('batch-spin', false);
+      document.querySelector('[onclick="runBatch()"]').disabled = false;
+      document.querySelector('[onclick="cancelBatch()"]').style.display = 'none';
+      return;
+    }
+    appendLog(`▶ ${d.message}`, 'info');
+    // Iniciar polling
+    _batchPollTimer = setInterval(pollBatch, 1800);
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+    setProgress(0, 'Error de conexión');
+    spin('batch-spin', false);
+    document.querySelector('[onclick="runBatch()"]').disabled = false;
+    document.querySelector('[onclick="cancelBatch()"]').style.display = 'none';
+  }
+}
+
+async function pollBatch() {
+  try {
+    const r = await fetch(API_BASE + '/batch/status');
+    const d = await r.json();
+
+    // Progreso
+    const pct  = d.pct || 0;
+    const proc = d.procesados || 0;
+    const tot  = d.total || 0;
+    const elapsed = d.elapsed_seg ? ` · ${d.elapsed_seg}s` : '';
+    setProgress(pct,
+      tot > 0
+        ? `${proc} / ${tot} archivos (${pct}%)${elapsed}`
+        : 'Consultando archivos…'
+    );
+
+    // Stats en vivo
+    document.getElementById('stat-total').textContent  = tot;
+    document.getElementById('stat-ok').textContent     = proc - (d.errores || 0) - (d.omitidos || 0);
+    document.getElementById('stat-cached').textContent = d.omitidos || 0;
+    document.getElementById('stat-err').textContent    = d.errores || 0;
+    document.getElementById('batch-stats').style.display = 'flex';
+
+    // Log
+    const lines = d.log || [];
+    lines.slice(_batchLogShown).forEach(l => {
+      appendLog(l.msg, l.nivel || 'info');
+    });
+    _batchLogShown = lines.length;
+
+    // Tabla de detalle
+    if ((d.detalle || []).length > 0) {
+      renderBatchDetailTable(d.detalle);
+    }
+
+    if (!d.running) {
+      clearInterval(_batchPollTimer);
+      spin('batch-spin', false);
+      document.querySelector('[onclick="runBatch()"]').disabled = false;
+      document.querySelector('[onclick="cancelBatch()"]').style.display = 'none';
+      setProgress(100, `✅ Completado — ${proc} procesados, ${d.errores} errores, ${d.omitidos} omitidos`);
+      toast(`Batch completado: ${proc - (d.errores||0) - (d.omitidos||0)} nuevos · ${d.omitidos} omitidos · ${d.errores} errores`,
+            d.errores > 0 ? 'info' : 'success');
+    }
+  } catch(e) { /* ignorar errores de red transitorios */ }
+}
+
+function appendLog(msg, nivel) {
+  const el  = document.getElementById('batch-log-body');
+  const div = document.createElement('div');
+  const colors = { ok: '#22c55e', error: '#ef4444', warn: '#f59e0b', skip: '#f59e0b', info: '#94a3b8' };
+  div.style.color = colors[nivel] || colors.info;
+  div.style.lineHeight = '1.6';
+  div.textContent = msg;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+}
+
+function renderBatchDetailTable(detalle) {
+  document.getElementById('batch-results-card').style.display = 'block';
+  const tbody = document.getElementById('batch-tbody');
+  tbody.innerHTML = '';
+  detalle.forEach((row) => {
+    const statusBadge =
+      row.status === 'ok'      ? '<span class="badge badge-ok">✓ ok</span>' :
+      row.status === 'omitido' ? '<span class="badge badge-cached">⏭ omitido</span>' :
+                                 '<span class="badge badge-error">✗ error</span>';
+    const examenes = row.examenes != null ? row.examenes : '—';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="mono" style="font-size:.7rem;color:var(--muted)">${row.id_archivo}</td>
+      <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+          title="${row.nombre}">${row.nombre}</td>
+      <td>${statusBadge}</td>
+      <td class="mono" style="font-size:.72rem">${examenes}</td>
+      <td style="font-size:.75rem;color:var(--muted)">${row.msg || ''}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function setProgress(pct, txt) {
+  document.getElementById('batch-progress-bar').style.width = pct + '%';
+  document.getElementById('batch-progress-txt').textContent = txt;
+}
+
+function renderBatchStats(d) {
+  const cached = (d.resultados || []).filter(r => r.result?.cached).length;
+  document.getElementById('stat-total').textContent   = d.total ?? 0;
+  document.getElementById('stat-ok').textContent      = d.procesados ?? 0;
+  document.getElementById('stat-cached').textContent  = cached;
+  document.getElementById('stat-err').textContent     = d.errores ?? 0;
+  document.getElementById('batch-stats').style.display = 'flex';
+}
+
+function renderBatchTable(rows) {
+  const tbody = document.getElementById('batch-tbody');
+  tbody.innerHTML = '';
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="empty">Sin resultados</td></tr>';
+  }
+  rows.forEach((row, idx) => {
+    const res = row.result || {};
+    const examenes = res.examenes || [];
+    const first = examenes[0] || {};
+    const status = row.status;
+
+    const statusBadge = status === 'ok'
+      ? (res.cached ? '<span class="badge badge-cached">💾 caché</span>' : '<span class="badge badge-ok">✓ ok</span>')
+      : '<span class="badge badge-error">✗ error</span>';
+
+    const tipoExamen = first.tipo_examen
+      ? (examenes.length > 1 ? `${first.tipo_examen} +${examenes.length-1}` : first.tipo_examen)
+      : (res.error || '—');
+
+    const fecha = first.fecha ? first.fecha.replace(/(\d{4})(\d{2})(\d{2})/, '$3/$2/$1') : '—';
+    const fhir  = first.fhir_category || '—';
+    const cups  = first.codigo_cups ? `<span class="mono" style="font-size:.68rem">${first.codigo_cups}</span>` : '—';
+    const params = examenes.reduce((a, e) => a + (e.resultados?.length || 0), 0);
+
+    tbody.innerHTML += `
+      <tr>
+        <td class="mono" style="font-size:.72rem">${row.id_archivo}</td>
+        <td>${statusBadge}</td>
+        <td style="font-size:.78rem">${tipoExamen}</td>
+        <td class="mono" style="font-size:.72rem">${fecha}</td>
+        <td>${fhirBadge(fhir)}</td>
+        <td>${cups}</td>
+        <td style="text-align:center; font-family:var(--mono); font-size:.75rem;">${params}</td>
+        <td>${res.cached ? '<span class="badge badge-cached">sí</span>' : ''}</td>
+        <td>
+          ${status === 'ok' ? `<button class="btn btn-secondary" style="padding:.25rem .6rem;font-size:.72rem;" onclick='showBatchDetail(${idx})'>ver</button>` : ''}
+        </td>
+      </tr>`;
+  });
+  document.getElementById('batch-results-card').style.display = 'block';
+}
+
+function clearBatchResults() {
+  batchResults = [];
+  document.getElementById('batch-stats').style.display = 'none';
+  document.getElementById('batch-results-card').style.display = 'none';
+  document.getElementById('batch-progress-card').style.display = 'none';
+}
+
+function showBatchDetail(idx) {
+  const row = batchResults[idx];
+  if (!row) return;
+  document.getElementById('modal-title').textContent = `ID Archivo: ${row.id_archivo}`;
+  document.getElementById('modal-body').innerHTML = renderExamenes(row.result);
+  document.getElementById('detail-modal').style.display = 'flex';
+}
+
+// ── SINGLE ─────────────────────────────────────────────────────────────────
+async function runSingle() {
+  const url   = document.getElementById('single-url').value.trim();
+  const idU   = document.getElementById('single-iduser').value;
+  const ident = document.getElementById('single-ident').value.trim();
+  if (!url || !idU || !ident) { toast('URL, ID Usuario e Identificación son requeridos', 'error'); return; }
+
+  spin('single-spin', true);
+  document.getElementById('single-result-area').innerHTML = '';
+
+  const body = {
+    url, id_usuario: parseInt(idU), identificacion: ident,
+    id_archivo: parseInt(document.getElementById('single-idarchivo').value) || null,
+    output_lang: document.getElementById('single-lang').value,
+    force_reprocess: document.getElementById('single-force').checked,
+  };
+
+  try {
+    const r = await fetch(API_BASE + '/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    if (d.error) {
+      toast('Error: ' + d.error, 'error');
+      document.getElementById('single-result-area').innerHTML =
+        `<div class="card"><div class="card-title"><div class="dot" style="background:var(--danger)"></div>Error de procesamiento</div>
+         <div class="badge badge-error">${d.error}</div></div>`;
+    } else {
+      document.getElementById('single-result-area').innerHTML =
+        `<div class="card">
+           <div class="card-title"><div class="dot"></div>Resultado del análisis
+             ${d.cached ? '<span class="badge badge-cached" style="margin-left:.5rem">💾 caché</span>' : ''}
+           </div>
+           ${renderExamenes(d)}
+         </div>`;
+      toast('Análisis completado', 'success');
+    }
+  } catch(e) {
+    toast('Error de conexión: ' + e.message, 'error');
+  } finally {
+    spin('single-spin', false);
+  }
+}
+
+function clearSingle() {
+  document.getElementById('single-result-area').innerHTML = '';
+  document.getElementById('single-url').value = '';
+}
+
+// ── RENDER EXAMENES ────────────────────────────────────────────────────────
+function renderExamenes(data) {
+  const examenes = data?.examenes || [];
+  if (!examenes.length) return '<div class="empty"><div class="icon">📭</div>Sin exámenes extraídos</div>';
+
+  const inst = data.institucion_documento || '';
+  const prof = data.profesional_documento?.nombre || '';
+
+  let html = '';
+  if (inst || prof) {
+    html += `<div style="margin-bottom:.8rem;font-size:.78rem;color:var(--muted);">`;
+    if (inst) html += `🏥 <b>${inst}</b> &nbsp;`;
+    if (prof) html += `👨‍⚕️ <b>${prof}</b>`;
+    html += '</div>';
+  }
+
+  html += '<div class="exam-accordion">';
+  examenes.forEach((ex, i) => {
+    const fecha = ex.fecha ? ex.fecha.replace(/(\d{4})(\d{2})(\d{2})/, '$3/$2/$1') : '—';
+    const params = ex.resultados?.length || 0;
+    const cups = ex.codigo_cups ? `<span class="badge badge-sin" style="font-size:.6rem">${ex.codigo_cups}</span>` : '';
+
+    html += `
+    <div class="exam-block">
+      <div class="exam-header" onclick="toggleExam(this)">
+        <div class="exam-header-left">
+          <span class="exam-name">${ex.tipo_examen || 'Examen'}</span>
+          ${fhirBadge(ex.fhir_category)}
+          ${cups}
+          <span class="badge badge-sin" style="font-size:.6rem">📅 ${fecha}</span>
+          ${params ? `<span class="badge badge-sin" style="font-size:.6rem">${params} parámetros</span>` : ''}
+        </div>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="exam-body" id="exam-body-${i}">
+        ${renderExamDetail(ex)}
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+  return html;
+}
+
+function toggleExam(header) {
+  const chevron = header.querySelector('.chevron');
+  const body = header.nextElementSibling;
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  chevron.classList.toggle('open', !isOpen);
+}
+
+function renderExamDetail(ex) {
+  let html = '';
+
+  // Metadata row
+  const meta = [
+    ex.disciplina      && `<b>Disciplina:</b> ${ex.disciplina}`,
+    ex.subcategoria    && `<b>Subcategoría:</b> ${ex.subcategoria}`,
+    ex.institucion     && `<b>Institución:</b> ${ex.institucion}`,
+    ex.profesional     && `<b>Profesional:</b> ${ex.profesional}`,
+    ex.cargo_profesional && `<b>Cargo:</b> ${ex.cargo_profesional}`,
+    ex.nombre_cups     && `<b>CUPS:</b> ${ex.nombre_cups}`,
+  ].filter(Boolean);
+
+  if (meta.length) {
+    html += `<div style="font-size:.75rem;color:var(--muted);margin-bottom:.8rem;line-height:1.9;display:flex;flex-wrap:wrap;gap:.5rem 1.2rem;">
+      ${meta.map(m => `<span>${m}</span>`).join('')}
+    </div>`;
+  }
+
+  // Resultados
+  const resultados = ex.resultados || [];
+  if (resultados.length) {
+    html += `<div class="results-scroll"><table class="param-table">
+      <thead><tr>
+        <th>Parámetro</th><th>Valor</th><th>Unidad</th>
+        <th>Referencia</th><th>Estado</th><th>Nota</th>
+      </tr></thead><tbody>`;
+    resultados.forEach(r => {
+      html += `<tr>
+        <td>${r.parametro || '—'}</td>
+        <td class="mono" style="font-size:.75rem">${r.valor ?? '—'}</td>
+        <td class="mono" style="font-size:.7rem;color:var(--muted)">${r.unidad || ''}</td>
+        <td style="font-size:.72rem;color:var(--muted)">${r.referencia || '—'}</td>
+        <td>${stateBadge(r.estado)}</td>
+        <td style="font-size:.72rem;color:var(--muted)">${r.nota || ''}</td>
+      </tr>`;
+    });
+    html += '</tbody></table></div>';
+  } else {
+    // For RAD/PAT exams with no table parameters
+    html += `<div style="font-size:.8rem;color:var(--muted);padding:.5rem 0;">
+      ${ex.notas_medico ? `<p><b>Notas médico:</b> ${ex.notas_medico}</p>` : ''}
+      ${ex.notas_paciente ? `<p><b>Notas paciente:</b> ${ex.notas_paciente}</p>` : ''}
+      ${!ex.notas_medico && !ex.notas_paciente ? 'Sin parámetros tabulados para este tipo de examen.' : ''}
+    </div>`;
+  }
+
+  // Notas clínicas
+  if (ex.notas_clinicas?.length) {
+    html += `<div style="margin-top:.6rem;font-size:.75rem;color:var(--muted);">
+      <b>Notas clínicas:</b> ${ex.notas_clinicas.join(' · ')}
+    </div>`;
+  }
+
+  return html;
+}
+
+// ── EVOLUCIÓN ──────────────────────────────────────────────────────────────
+async function runEvolucion() {
+  const idU = document.getElementById('evol-iduser').value;
+  if (!idU) { toast('Ingresa un ID de usuario', 'error'); return; }
+
+  spin('evol-spin', true);
+  document.getElementById('evol-result-area').innerHTML = '<div class="empty"><div class="icon">⏳</div>Cargando evolución clínica…</div>';
+
+  try {
+    const r = await fetch(API_BASE + '/evolucion', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id_usuario: parseInt(idU),
+        output_lang: document.getElementById('evol-lang').value,
+      }),
+    });
+    const d = await r.json();
+    renderEvolucion(d);
+    toast(`Evolución cargada: ${d.total_archivos} archivos`, 'success');
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+    document.getElementById('evol-result-area').innerHTML = '<div class="empty"><div class="icon">⚠️</div>Error al cargar datos</div>';
+  } finally {
+    spin('evol-spin', false);
+  }
+}
+
+function renderEvolucion(d) {
+  const grupos = d.grupos || {};
+  const area = document.getElementById('evol-result-area');
+
+  if (!Object.keys(grupos).length) {
+    area.innerHTML = '<div class="empty"><div class="icon">📭</div>Sin datos de evolución para este paciente</div>';
+    return;
+  }
+
+  let html = '';
+
+  // Narrativa
+  if (d.narrativa) {
+    html += `<div class="card">
+      <div class="card-title"><div class="dot"></div>Narrativa Clínica IA</div>
+      <div class="narrativa-box">${d.narrativa}</div>
+    </div>`;
+  }
+
+  // Por tipo de examen
+  Object.entries(grupos).forEach(([tipo, params]) => {
+    const paramList = Object.entries(params);
+    html += `<div class="card">
+      <div class="card-title"><div class="dot"></div>${tipo} <span class="tag" style="font-family:var(--mono);font-size:.6rem">${paramList.length} parámetros</span></div>
+      <div class="chart-grid">`;
+
+    paramList.forEach(([param, info]) => {
+      const puntos = info.puntos || [];
+      const vals = puntos.map(p => p.valor_num);
+      const maxV = Math.max(...vals);
+      const minV = Math.min(...vals);
+      const range = maxV - minV || 1;
+      const tend = info.tendencia || {};
+      const dir  = tend.direccion || 'estable';
+
+      const tendClass  = dir === 'sube'   ? 'trend-up'
+                       : dir === 'baja'   ? 'trend-down'
+                       : 'trend-stable';
+      const tendLabel  = dir === 'sube'   ? '↑ sube'
+                       : dir === 'baja'   ? '↓ baja'
+                       : '→ estable';
+
+      const bars = puntos.map(p => {
+        const pct = Math.max(10, ((p.valor_num - minV) / range) * 100);
+        const color = p.estado === 'alto' ? 'var(--danger)'
+                    : p.estado === 'bajo'  ? 'var(--accent2)'
+                    : 'var(--accent)';
+        const fecha = p.fecha_str || '';
+        return `<div style="display:flex;flex-direction:column;flex:1;align-items:center;">
+          <div class="mini-bar" style="height:${pct}%;background:${color};opacity:.75;" title="${p.valor_num} ${info.unidad} (${fecha})"></div>
+          <div class="point-date">${fecha.split('/').slice(0,2).join('/')}</div>
+        </div>`;
+      }).join('');
+
+      const last = puntos[puntos.length - 1];
+      html += `<div class="chart-card">
+        <div class="chart-card-title">
+          <span>${param}</span>
+          <span class="trend-badge ${tendClass}">${tendLabel}</span>
+        </div>
+        <div style="font-family:var(--mono);font-size:.72rem;color:var(--muted);margin-bottom:.4rem;">
+          ${last ? `Último: <b style="color:var(--text)">${last.valor_num} ${info.unidad}</b>` : ''}
+          ${info.referencia ? ` · Ref: ${info.referencia}` : ''}
+        </div>
+        <div class="mini-chart">
+          <div class="mini-points">${bars}</div>
+        </div>
+        <div style="font-size:.65rem;color:var(--muted);margin-top:.3rem;">
+          ${puntos.length} medición(es)
+          ${tend.pendiente ? ` · pendiente: ${tend.pendiente.toFixed(3)}` : ''}
+        </div>
+      </div>`;
+    });
+
+    html += '</div></div>';
+  });
+
+  area.innerHTML = html;
+}
+
+// ── Modal ──────────────────────────────────────────────────────────────────
+function closeModal(e) {
+  if (e.target === document.getElementById('detail-modal')) {
+    document.getElementById('detail-modal').style.display = 'none';
+  }
+}
+</script>
+</body>
+</html>
