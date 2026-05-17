@@ -7,8 +7,9 @@ router = APIRouter(tags=["evolucion"])
 
 evolucion_service = EvolucionService()
 
-
-@router.post("/")
+# NOTA: main.py registra este router SIN prefix, así que el path
+# debe ser "/evolucion" para que el frontend lo encuentre en POST /evolucion
+@router.post("/evolucion")
 async def get_evolucion(req: EvolucionRequest):
     """Obtiene la evolución clínica longitudinal del paciente"""
     try:

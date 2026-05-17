@@ -7,6 +7,7 @@ from repositories.oracle_repo import OracleRepo
 from services.analysis_service import AnalysisService
 from fastapi import HTTPException
 
+
 class BatchService:
     def __init__(self):
         self.analysis_service = AnalysisService()
@@ -33,6 +34,21 @@ class BatchService:
                 self._state["log"] = self._state["log"][-300:]
         print(f"[BATCH {ts}] {msg}")
 
+    # ── Preview ───────────────────────────────────────────────────────────────
+    def preview(self, fecha_ini: str, fecha_fin: str):
+        """Cuenta cuántos archivos hay en el rango sin procesarlos."""
+        rows = self.repo.get_batch_count(fecha_ini, fecha_fin)
+        if not rows or rows[0] is None:
+            return {"total": 0, "ya_analizados": 0, "pendientes": 0}
+        total = int(rows[0][0] or 0)
+        ya    = int(rows[0][1] or 0)
+        return {
+            "total": total,
+            "ya_analizados": ya,
+            "pendientes": total - ya
+        }
+
+    # ── Start ─────────────────────────────────────────────────────────────────
     def start_batch(self, req: BatchRequest):
         with self._lock:
             if self._state["running"]:
@@ -54,6 +70,7 @@ class BatchService:
 
         return {"ok": True, "job_id": job_id, "message": f"Batch iniciado {req.fecha_ini} → {req.fecha_fin}"}
 
+    # ── Worker ────────────────────────────────────────────────────────────────
     def _batch_worker(self, job_id, fecha_ini, fecha_fin, output_lang, force_reprocess):
         rows = self.repo.get_batch_files(fecha_ini, fecha_fin)
         if not rows:
@@ -71,8 +88,23 @@ class BatchService:
 
             identificacion, opcion1, opcion2, id_descripcion, _, id_archivo, id_usuario, ya_analizado, _ = row
 
+            # Omitir si ya fue analizado y no se fuerza reproceso
+            if ya_analizado and not force_reprocess:
+                self._blog(f"⏭ [{id_archivo}] Ya analizado — omitido", "skip")
+                with self._lock:
+                    self._state["procesados"] += 1
+                    self._state["omitidos"]  += 1
+                    self._state["detalle"].append({
+                        "id_archivo": int(id_archivo),
+                        "nombre": opcion2 or opcion1 or str(id_archivo),
+                        "status": "omitido",
+                        "msg": "ya analizado"
+                    })
+                continue
+
             try:
-                result = self.analysis_service.analizar_archivo(
+                
+                result = self.analysis_service.analizar_archivo_sync(
                     url="",
                     id_usuario=id_usuario,
                     id_archivo=id_archivo,
@@ -84,9 +116,12 @@ class BatchService:
                     id_descripcion=id_descripcion or 0
                 )
                 status = "ok"
-                self._blog(f"✓ [{id_archivo}] Procesado correctamente", "ok")
+                examenes = len(result.get("examenes", []))
+                self._blog(f"✓ [{id_archivo}] OK — {examenes} examen(es)", "ok")
+                msg = f"{examenes} examen(es)"
             except Exception as e:
                 status = "error"
+                msg = str(e)[:80]
                 self._blog(f"✗ [{id_archivo}] Error: {e}", "error")
 
             with self._lock:
@@ -96,7 +131,8 @@ class BatchService:
                 self._state["detalle"].append({
                     "id_archivo": int(id_archivo),
                     "nombre": opcion2 or opcion1 or str(id_archivo),
-                    "status": status
+                    "status": status,
+                    "msg": msg
                 })
 
         self._finish_batch(job_id)
@@ -107,6 +143,7 @@ class BatchService:
                 self._state["running"] = False
                 self._state["fin"] = datetime.now().isoformat()
 
+    # ── Status / Cancel ───────────────────────────────────────────────────────
     def get_status(self):
         with self._lock:
             s = self._state.copy()
